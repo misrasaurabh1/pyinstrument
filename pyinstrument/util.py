@@ -25,15 +25,18 @@ def truncate(string: str, max_length: int) -> str:
     return string
 
 
-@decorator
 def deprecated(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     """Marks a function as deprecated."""
-    warnings.warn(
-        f"{func} is deprecated and should no longer be used.",
-        DeprecationWarning,
-        stacklevel=3,
-    )
-    return func(*args, **kwargs)
+
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        warnings.warn(
+            f"{func.__name__} is deprecated and should no longer be used.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def deprecated_option(option_name: str, message: str = "") -> Any:
