@@ -5,14 +5,17 @@ import os
 import re
 import sys
 import warnings
+from functools import lru_cache
 from typing import IO, Any, AnyStr, Callable
 
 from pyinstrument.vendor.decorator import decorator
 
 
+@lru_cache(maxsize=128)
 def object_with_import_path(import_path: str) -> Any:
     if "." not in import_path:
-        raise ValueError("Can't import '%s', it is not a valid import path" % import_path)
+        raise ValueError(f"Can't import '{import_path}', it is not a valid import path")
+
     module_path, object_name = import_path.rsplit(".", 1)
 
     module = importlib.import_module(module_path)
