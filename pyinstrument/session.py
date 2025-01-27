@@ -75,23 +75,33 @@ class Session:
             json.dump(self.to_json(), f)
 
     def to_json(self, include_frame_records: bool = True):
-        result: dict[str, Any] = {
-            "start_time": self.start_time,
-            "duration": self.duration,
-            "min_interval": self.min_interval,
-            "max_interval": self.max_interval,
-            "sample_count": self.sample_count,
-            "start_call_stack": self.start_call_stack,
-            "target_description": self.target_description,
-            "cpu_time": self.cpu_time,
-            "sys_path": self.sys_path,
-            "sys_prefixes": self.sys_prefixes,
-        }
-
         if include_frame_records:
-            result["frame_records"] = self.frame_records
-
-        return result
+            return {
+                "start_time": self.start_time,
+                "duration": self.duration,
+                "min_interval": self.min_interval,
+                "max_interval": self.max_interval,
+                "sample_count": self.sample_count,
+                "start_call_stack": self.start_call_stack,
+                "target_description": self.target_description,
+                "cpu_time": self.cpu_time,
+                "sys_path": self.sys_path,
+                "sys_prefixes": self.sys_prefixes,
+                "frame_records": self.frame_records,
+            }
+        else:
+            return {
+                "start_time": self.start_time,
+                "duration": self.duration,
+                "min_interval": self.min_interval,
+                "max_interval": self.max_interval,
+                "sample_count": self.sample_count,
+                "start_call_stack": self.start_call_stack,
+                "target_description": self.target_description,
+                "cpu_time": self.cpu_time,
+                "sys_path": self.sys_path,
+                "sys_prefixes": self.sys_prefixes,
+            }
 
     @staticmethod
     def from_json(json_dict: dict[str, Any]):
