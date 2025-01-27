@@ -95,24 +95,22 @@ class ConsoleRenderer(FrameRenderer):
                 """
             )
 
+        version = f"v{pyinstrument.__version__}"
+        recorded_time = time.strftime("%X", time.localtime(session.start_time))
+        duration = f"{session.duration:<9.3f}"
+        cpu_time = f"{session.cpu_time:.3f}"
+        samples = f"{session.sample_count}"
+
         lines = [
             r"",
-            r"  _     ._   __/__   _ _  _  _ _/_  ",
-            r" /_//_/// /_\ / //_// / //_'/ //    ",
-            r"/   _/        {:>20}".format("v" + pyinstrument.__version__),
+            rf"  _     ._   __/__   _ _  _  _ _/_  "
+            rf" /_//_/// /_\ / //_// / //_'/ //    {version:>20} Recorded: {recorded_time:<9} Samples:  {samples}",
+            rf"/   _/                               Duration: {duration} CPU time: {cpu_time}",
+            r"",
+            session.target_description,
+            r"",
+            r"",
         ]
-
-        lines[1] += " Recorded: {:<9}".format(
-            time.strftime("%X", time.localtime(session.start_time))
-        )
-        lines[2] += f" Duration: {session.duration:<9.3f}"
-        lines[1] += f" Samples:  {session.sample_count}"
-        lines[2] += f" CPU time: {session.cpu_time:.3f}"
-
-        lines.append("")
-        lines.append(session.target_description)
-        lines.append("")
-        lines.append("")
 
         return "\n".join(lines)
 
@@ -198,65 +196,63 @@ class ConsoleRenderer(FrameRenderer):
         return result
 
     def render_frame_flat(self, frame: Frame, indent: str) -> str:
-        def walk(frame: Frame):
-            frame_id_to_time[frame.identifier] = (
-                frame_id_to_time.get(frame.identifier, 0) + frame.total_self_time
-                if self.flat_time == "self"
-                else frame.time
-            )
-
-            frame_id_to_frame[frame.identifier] = frame
-
-            for child in frame.children:
-                walk(child)
-
         frame_id_to_time: Dict[str, float] = {}
         frame_id_to_frame: Dict[str, Frame] = {}
 
+        def walk(frame: Frame):
+            frame_id = frame.identifier
+            frame_time = frame.total_self_time if self.flat_time == "self" else frame.time
+
+            if frame_id in frame_id_to_time:
+                frame_id_to_time[frame_id] += frame_time
+            else:
+                frame_id_to_time[frame_id] = frame_time
+
+            frame_id_to_frame[frame_id] = frame
+            for child in frame.children:
+                walk(child)
+
         walk(frame)
 
-        id_time_pairs: List[Tuple[str, float]] = sorted(
-            frame_id_to_time.items(), key=(lambda item: item[1]), reverse=True
-        )
+        # Generate id_time_pairs and filter in one pass
+        root_frame_time = self.root_frame.time
+        id_time_pairs: List[Tuple[str, float]] = [
+            (fid, time)
+            for fid, time in sorted(
+                frame_id_to_time.items(), key=lambda item: item[1], reverse=True
+            )
+            if self.show_all or time / root_frame_time > 0.001
+        ]
 
-        if not self.show_all:
-            # remove nodes that represent less than 0.1% of the total time
-            id_time_pairs = [
-                pair for pair in id_time_pairs if pair[1] / self.root_frame.time > 0.001
-            ]
+        result_lines = [
+            self.frame_description(frame_id_to_frame[fid], override_time=time)
+            for fid, time in id_time_pairs
+        ]
 
-        result = ""
-
-        for frame_id, self_time in id_time_pairs:
-            result += self.frame_description(frame_id_to_frame[frame_id], override_time=self_time)
-            result += "\n"
-
-        return result
+        return "\n".join(result_lines)
 
     def frame_description(self, frame: Frame, *, override_time: float | None = None) -> str:
         time = override_time if override_time is not None else frame.time
         time_color = self._ansi_color_for_time(time)
-
-        if self.time == "percent_of_total":
-            time_str = f"{self.frame_proportion_of_total_time(time) * 100:.1f}%"
-        else:
-            time_str = f"{time:.3f}"
+        time_str = (
+            f"{self.frame_proportion_of_total_time(time) * 100:.1f}%"
+            if self.time == "percent_of_total"
+            else f"{time:.3f}"
+        )
 
         value_str = f"{time_color}{time_str}{self.colors.end}"
 
         class_name = frame.class_name
-        if class_name:
-            function_name = f"{class_name}.{frame.function}"
-        else:
-            function_name = frame.function
+        function_name = f"{class_name}.{frame.function}" if class_name else frame.function
         function_color = self._ansi_color_for_name(frame)
         function_str = f"{function_color}{function_name}{self.colors.end}"
 
         code_position_short = frame.code_position_short()
-        if code_position_short:
-            code_position_str = f"{self.colors.faint}{code_position_short}{self.colors.end}"
-        else:
-            code_position_str = ""
+        code_position_str = (
+            f"{self.colors.faint}{code_position_short}{self.colors.end}"
+            if code_position_short is not None
+            else ""
+        )
 
         return f"{value_str} {function_str}  {code_position_str}"
 
