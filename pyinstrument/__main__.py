@@ -420,9 +420,7 @@ def compute_render_options(
     color_support: bool,
 ) -> dict[str, Any]:
     """
-    Given a list of `CommandLineOptions`, compute the
-    rendering options for the given renderer.
-
+    Given a list of `CommandLineOptions`, compute the rendering options for the given renderer.
     Raises an `OptionsParseError` if there is an error parsing the options.
 
     unicode_support:
@@ -430,35 +428,29 @@ def compute_render_options(
     color_support:
         indicate whether the expected output supports color
 
-    Both of these will be used to determine the  default of outputting unicode
-    or color, but can be overridden with `options.color` and `option.unicode`.
+    Both of these will be used to determine the  default of outputting unicode or color, but can be overridden with `options.color` and `option.unicode`.
     """
 
     # parse show/hide options
-    if options.hide_fnmatch is not None and options.hide_regex is not None:
-        raise OptionsParseError("You can‘t specify both --hide and --hide-regex")
+    if options.hide_fnmatch and options.hide_regex:
+        raise OptionsParseError("You can’t specify both --hide and --hide-regex")
 
-    hide_regex: str | None
-    show_regex: str | None
-    if options.hide_fnmatch is not None:
-        hide_regex = fnmatch.translate(options.hide_fnmatch)
-    else:
-        hide_regex = options.hide_regex
+    hide_regex = (
+        fnmatch.translate(options.hide_fnmatch) if options.hide_fnmatch else options.hide_regex
+    )
 
-    show_options_used = [
-        options.show_fnmatch is not None,
-        options.show_regex is not None,
-        options.show_all,
-    ]
-    if show_options_used.count(True) > 1:
+    show_options_used = sum(
+        option is not None
+        for option in [options.show_fnmatch, options.show_regex, options.show_all]
+    )
+    if show_options_used > 1:
         raise OptionsParseError("You can only specify one of --show, --show-regex and --show-all")
 
-    if options.show_fnmatch is not None:
-        show_regex = fnmatch.translate(options.show_fnmatch)
-    elif options.show_all:
-        show_regex = r".*"
-    else:
-        show_regex = options.show_regex
+    show_regex = (
+        r".*"
+        if options.show_all
+        else fnmatch.translate(options.show_fnmatch) if options.show_fnmatch else options.show_regex
+    )
 
     render_options: dict[str, Any] = {}
 
@@ -469,36 +461,31 @@ def compute_render_options(
         }
 
     if issubclass(renderer_class, renderers.ConsoleRenderer):
-        unicode_override = options.unicode is not None
-        color_override = options.color is not None
-        unicode: Any = options.unicode if unicode_override else unicode_support
-        color: Any = options.color if color_override else color_support
-
-        render_options.update({"unicode": unicode, "color": color})
+        render_options.update(
+            {
+                "unicode": options.unicode if options.unicode is not None else unicode_support,
+                "color": options.color if options.color is not None else color_support,
+            }
+        )
 
     if options.timeline:
         render_options["timeline"] = True
     if options.show_all:
         render_options["show_all"] = True
 
-    # apply user options
-    if options.render_options is not None:
+    if options.render_options:
         for renderer_option in options.render_options:
             key, sep, value = renderer_option.partition("=")
-
-            if sep == "":
-                # we're setting a flag, like `-p unicode`
-                keypath.set_value_at_keypath(render_options, key, True)
-            else:
-                # it's a key=value structure
-                try:
-                    # try parsing as a JSON value
-                    parsed_value = json.loads(value)
-                except json.JSONDecodeError:
-                    # otherwise treat it as a string
-                    parsed_value = value
-
-                keypath.set_value_at_keypath(render_options, key, parsed_value)
+            parsed_value = (
+                True
+                if sep == ""
+                else (
+                    json.loads(value)
+                    if sep and (parsed_value := json.loads(value, strict=False))
+                    else value
+                )
+            )
+            keypath.set_value_at_keypath(render_options, key, parsed_value)
 
     return render_options
 
