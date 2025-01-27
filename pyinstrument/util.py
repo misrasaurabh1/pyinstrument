@@ -95,10 +95,8 @@ def format_float_with_sig_figs(value: float, sig_figs: int = 3, trim_zeroes=Fals
     if value == 0:
         return "0"
 
-    precision = math.ceil(-math.log10(abs(value))) + sig_figs - 1
-    if precision < 0:
-        precision = 0
-    result = "{:.{precision}f}".format(value, precision=precision)
+    precision = max(0, sig_figs - 1 - int(math.floor(math.log10(abs(value)))))
+    result = f"{value:.{precision}f}"
 
     if trim_zeroes and "." in result:
         result = result.rstrip("0").rstrip(".")
