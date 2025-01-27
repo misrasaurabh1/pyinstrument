@@ -109,20 +109,22 @@ class StackSampler:
         self._update()
 
     def _update(self):
-        if len(self.subscribers) == 0:
+        subscribers_count = len(self.subscribers)
+        if subscribers_count == 0:
             self._stop_sampling()
             return
 
-        min_subscribers_interval = min(s.desired_interval for s in self.subscribers)
-        timing_thread_preferences = set(
-            s.use_timing_thread for s in self.subscribers if s.use_timing_thread is not None
-        )
-        if len(timing_thread_preferences) > 1:
-            raise ValueError(
-                f"Profiler requested different timing thread preferences from a profiler that is already running."
-            )
+        subscriber_intervals = (s.desired_interval for s in self.subscribers)
+        min_subscribers_interval = min(subscriber_intervals)
 
-        use_timing_thread = next(iter(timing_thread_preferences), False)
+        use_timing_thread = False
+        for s in self.subscribers:
+            if s.use_timing_thread is not None:
+                if use_timing_thread is not False and s.use_timing_thread != use_timing_thread:
+                    raise ValueError(
+                        f"Profiler requested different timing thread preferences from a profiler that is already running."
+                    )
+                use_timing_thread = s.use_timing_thread
 
         if self.current_sampling_interval != min_subscribers_interval:
             self._start_sampling(
@@ -135,23 +137,22 @@ class StackSampler:
                 f"Profiler requested to use the timing thread but this stack sampler is already using a custom timer function."
             )
 
-        timer_type: TimerType
-
         if self.timer_func:
-            timer_type = "timer_func"
+            timer_type: TimerType = "timer_func"
         elif use_timing_thread:
             timer_type = "walltime_thread"
         else:
             coarse_resolution = walltime_coarse_resolution()
-            if coarse_resolution is not None and coarse_resolution <= interval:
-                timer_type = "walltime_coarse"
-            else:
-                timer_type = "walltime"
+            timer_type = (
+                "walltime_coarse"
+                if coarse_resolution and coarse_resolution <= interval
+                else "walltime"
+            )
 
         self._check_timing_overhead(interval=interval, timer_type=timer_type)
 
         self.current_sampling_interval = interval
-        if self.last_profile_time == 0.0:
+        if not self.last_profile_time:
             self.last_profile_time = self._timer()
 
         setstatprofile(
