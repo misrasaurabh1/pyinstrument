@@ -31,8 +31,10 @@ def timing_thread():
         interval = get_interval(1.0)
         acquired = update_lock.acquire(timeout=interval)
         if acquired:
+            current_time = time.perf_counter()
             update_lock.release()
-        current_time = time.perf_counter()
+
+        time.sleep(interval)  # Sleep for the interval to avoid busy-wait
 
 
 def pyi_timing_thread_subscribe(desired_interval: float):
@@ -40,21 +42,19 @@ def pyi_timing_thread_subscribe(desired_interval: float):
 
     with subscriber_lock:
         if not thread_alive:
-            update_lock.acquire()
+            global update_lock
+            update_lock = threading.Lock()
             thread_should_exit = False
             threading.Thread(target=timing_thread).start()
             thread_alive = True
             current_time = time.perf_counter()
 
-        ids = [sub.id for sub in subscribers]
+        ids = {sub.id for sub in subscribers}  # Using a set for faster lookup
         new_id = 0
         while new_id in ids:
             new_id += 1
 
         subscribers.append(Subscription(desired_interval, new_id))
-
-        update_lock.release()
-        update_lock.acquire()
 
     return new_id
 
