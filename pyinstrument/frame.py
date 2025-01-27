@@ -332,11 +332,9 @@ class Frame:
                 child.self_check(recursive=True)
 
     def __repr__(self):
-        return "Frame(identifier=%s, time=%f, len(children)=%d), group=%r" % (
-            self.identifier,
-            self.time,
-            len(self.children),
-            self.group,
+        return (
+            f"Frame(identifier={self.identifier}, time={self.time:f}, "
+            f"len(children)={len(self.children)}), group={self.group!r}"
         )
 
     def to_json_str(self):
