@@ -400,4 +400,5 @@ class FrameGroup:
         return self._exit_frames
 
     def __repr__(self):
-        return "FrameGroup(len(frames)=%d)" % len(self.frames)
+        return f"FrameGroup(len(frames)={len(self._frames)})"
+
