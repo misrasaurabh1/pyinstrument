@@ -95,24 +95,22 @@ class ConsoleRenderer(FrameRenderer):
                 """
             )
 
+        version = f"v{pyinstrument.__version__}"
+        recorded_time = time.strftime("%X", time.localtime(session.start_time))
+        duration = f"{session.duration:<9.3f}"
+        cpu_time = f"{session.cpu_time:.3f}"
+        samples = f"{session.sample_count}"
+
         lines = [
             r"",
-            r"  _     ._   __/__   _ _  _  _ _/_  ",
-            r" /_//_/// /_\ / //_// / //_'/ //    ",
-            r"/   _/        {:>20}".format("v" + pyinstrument.__version__),
+            rf"  _     ._   __/__   _ _  _  _ _/_  "
+            rf" /_//_/// /_\ / //_// / //_'/ //    {version:>20} Recorded: {recorded_time:<9} Samples:  {samples}",
+            rf"/   _/                               Duration: {duration} CPU time: {cpu_time}",
+            r"",
+            session.target_description,
+            r"",
+            r"",
         ]
-
-        lines[1] += " Recorded: {:<9}".format(
-            time.strftime("%X", time.localtime(session.start_time))
-        )
-        lines[2] += f" Duration: {session.duration:<9.3f}"
-        lines[1] += f" Samples:  {session.sample_count}"
-        lines[2] += f" CPU time: {session.cpu_time:.3f}"
-
-        lines.append("")
-        lines.append(session.target_description)
-        lines.append("")
-        lines.append("")
 
         return "\n".join(lines)
 
@@ -278,10 +276,7 @@ class ConsoleRenderer(FrameRenderer):
             return self.colors.bright_green + self.colors.faint
 
     def _ansi_color_for_name(self, frame: Frame) -> str:
-        if frame.is_application_code:
-            return self.colors.bg_dark_blue_255 + self.colors.white_255
-        else:
-            return ""
+        return self.app_color if frame.is_application_code else ""
 
     def default_processors(self) -> ProcessorList:
         return [
