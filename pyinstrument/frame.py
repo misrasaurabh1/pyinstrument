@@ -4,7 +4,7 @@ import json
 import math
 import typing
 import uuid
-from typing import Callable, Sequence
+from typing import Sequence
 
 from pyinstrument.frame_info import (
     ATTRIBUTE_MARKER_CLASS_NAME,
@@ -343,18 +343,18 @@ class Frame:
         # method that converts this object into a JSON string. Uses an inline
         # technique because the json module uses 2x stack frames, so we'd get
         # a RecursionError on deep stacks.
-        encode_str = typing.cast(Callable[[str], str], json.encoder.encode_basestring)  # type: ignore
+        encode_str = json.encoder.encode_basestring  # type: ignore
 
-        property_decls: list[str] = []
-        property_decls.append('"identifier": %s' % encode_str(self.identifier))
-        property_decls.append('"time": %f' % self.time)
-        property_decls.append('"attributes": %s' % json.dumps(self.attributes))
-        child_jsons: list[str] = []
-        for child in self.children:
-            child_jsons.append(child.to_json_str())
-        property_decls.append('"children": [%s]' % ",".join(child_jsons))
+        # Using string interpolation and join to minimize the use of append
+        identifier_str = f'"identifier": {encode_str(self.identifier)}'
+        time_str = f'"time": {self.time:.6f}'
+        attributes_str = f'"attributes": {json.dumps(self.attributes)}'
 
-        return "{%s}" % ",".join(property_decls)
+        # Use list comprehension for child JSON conversion which is more efficient
+        children_str = f'"children": [{",".join(child.to_json_str() for child in self.children)}]'
+
+        # Join all parts together
+        return f'{{{",".join([identifier_str, time_str, attributes_str, children_str])}}}'
 
 
 class FrameGroup:
