@@ -107,4 +107,12 @@ def format_float_with_sig_figs(value: float, sig_figs: int = 3, trim_zeroes=Fals
 
 
 def strtobool(val: str) -> bool:
-    return val.lower() in {"y", "yes", "t", "true", "on", "1"}
+    val_lower = val.lower()
+    return (
+        val_lower == "y"
+        or val_lower == "yes"
+        or val_lower == "t"
+        or val_lower == "true"
+        or val_lower == "on"
+        or val_lower == "1"
+    )
